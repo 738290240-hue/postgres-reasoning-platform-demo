@@ -29,11 +29,14 @@ involving high-value reasoning workflows:
 
 ```text
 app/api/main.py                                  FastAPI boundary and score endpoint
+app/services/rule_repository.py                 Database-backed rule and observation access
 app/services/scoring.py                         Deterministic scoring engine
 app/db/session.py                               SQLAlchemy engine/session setup
 alembic/versions/20260521_0001_initial...py     PostgreSQL schema migration
+alembic/versions/20260521_0002_security...py    Roles, grants, and RLS policies
 docs/architecture.md                            Design notes and tradeoffs
 docs/trial-deliverable.md                       Trial-project explanation
+sql/demo_seed.sql                               Idempotent demo seed data
 tests/test_scoring_engine.py                    Deterministic behavior tests
 ```
 
@@ -45,8 +48,12 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 docker compose up -d postgres
 alembic upgrade head
+psql "$DATABASE_URL" -f sql/demo_seed.sql
 uvicorn app.api.main:app --reload
 ```
+
+If Docker is not available, point `DATABASE_URL` at any PostgreSQL 16 instance you control, then run
+the Alembic migrations and `sql/demo_seed.sql`.
 
 Run the deterministic scoring tests:
 
@@ -55,6 +62,23 @@ python3 -m unittest discover -s tests -v
 ```
 
 ## Example API Request
+
+The production-facing endpoint loads the active rule set and latest observations from PostgreSQL:
+
+```bash
+curl -X POST http://127.0.0.1:8000/score/from-database \
+  -H "Content-Type: application/json" \
+  -d '{
+    "subject_reference": "demo-clinic:subject-001",
+    "run_reason": "portfolio demo scoring run",
+    "run_by": "api-client"
+  }'
+```
+
+The response includes a persisted `score_run_id`, the rule version, the deterministic score, the
+input fingerprint, and per-variable contributions.
+
+The lower-level `/score` endpoint is retained as a pure deterministic scoring harness:
 
 ```bash
 curl -X POST http://127.0.0.1:8000/score \
@@ -109,6 +133,10 @@ produces the same output.
 The schema separates `identity.subject_phi` from reasoning tables. In production, this allows
 separate grants, access policies, retention rules, and audit review for PHI/PII.
 
+The second migration adds role boundaries for application access, configuration administration,
+PHI reads, and audit reads. Row-level security policies scope subject, observation, score-run, and
+score-contribution access with an optional transaction setting, `app.tenant_id`.
+
 ### Extensibility
 
 Variables are records in `reasoning.variable_definition`, not columns. New variables can be added
@@ -117,5 +145,5 @@ without migrations, and score contributions remain explainable at the per-variab
 ## Notes
 
 This is a concise technical demo, not a complete production system. Production work would add
-authentication, authorization, row-level security, integration tests against PostgreSQL, and deeper
-FHIR/HL7 mapping if healthcare interoperability is required.
+application authentication, integration tests against PostgreSQL, stronger migration governance,
+and deeper FHIR/HL7 mapping if healthcare interoperability is required.

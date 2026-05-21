@@ -5,17 +5,19 @@ This repository is shaped as a short trial artifact for a senior PostgreSQL/back
 ## What It Demonstrates
 
 - Configurable scoring rules stored in relational tables rather than hardcoded application logic.
+- API scoring that can load active rules and latest observations directly from PostgreSQL.
 - Versioned rule sets so historical calculations can be reproduced.
 - Deterministic scoring behavior with stable ordering, `Decimal` math, and canonical fingerprints.
 - Audit tables and triggers for who/what/when/why change history.
 - Structural isolation of PHI-like data from derived reasoning data.
+- Role grants and RLS policies showing security boundaries.
 - Normalized variable storage that scales without dynamic schema redesign.
 
 ## What Is Intentionally Out of Scope
 
 - Frontend UI.
 - AI model inference.
-- Production authentication and authorization.
+- Application authentication.
 - Full FHIR resource ingestion.
 
 ## Suggested Next Steps for a Real Client Project

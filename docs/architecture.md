@@ -20,6 +20,10 @@ keeping derived reasoning outputs queryable by operational users.
 to a specific version with decimal weights and optional bounds. Score runs always reference a
 specific `rule_set_id`, so historical results remain explainable after future configuration changes.
 
+The `/score/from-database` endpoint loads either a requested rule-set version or the single active
+version from PostgreSQL, then reads the subject's latest numeric observations. This keeps runtime
+behavior aligned with the relational configuration instead of relying on request-body rules.
+
 ## Deterministic Scoring
 
 The scoring service sorts variables by stable code, uses `Decimal`, quantizes output to eight
@@ -39,6 +43,18 @@ tables. Each audit row records:
 - timestamp
 
 For a production system, actor and reason would be set at transaction start with `SET LOCAL`.
+
+## Security Posture
+
+The second migration creates separate roles for:
+
+- `reasoning_app`: read configuration and observations, write score provenance
+- `reasoning_admin`: maintain configuration and inspect audit data
+- `phi_reader`: read PHI fields only when explicitly granted
+- `audit_reader`: inspect `audit.change_log`
+
+RLS policies use `app.tenant_id` as an optional transaction-scoped boundary. For example,
+`demo-clinic:subject-001` is visible when `SET LOCAL app.tenant_id = 'demo-clinic'`.
 
 ## Scaling Posture
 
